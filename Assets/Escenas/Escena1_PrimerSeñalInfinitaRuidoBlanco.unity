@@ -260,11 +260,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 793073237}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b036934e00411a947b311c0a3725292c, type: 3}
+  m_Script: {fileID: 11500000, guid: 0d9551588dffad644b1c10edea29d8d5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  MiVariable: 1
-  UltimoValorGenerado: 0
 --- !u!1 &1087058172
 GameObject:
   m_ObjectHideFlags: 0

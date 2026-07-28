@@ -23,7 +23,7 @@ using UnityEngine; // Vamos a usar Unity, por eso ponemos esta linea.
 // Unity agregará automáticamente un AudioSource al GameObject.
 
 
-public class Script1_PrimerSeñalInfinita: MonoBehaviour  //creo mi clase que se llama como el script 
+public class ActivarYDesactivarSeñal: MonoBehaviour  //creo mi clase que se llama como el script 
 // que HEREDA de MonoBehaviour, que es la clase base de todos los scripts de Unity.
 // los metodos start(), Update(), OnAudioFilterRead(), OnEnable(), OnDisable()...etc
 // osea aqui dentro de esta clase podemos escribir y usar todos los metodos de la clase Monobehaviour
@@ -34,17 +34,35 @@ public class Script1_PrimerSeñalInfinita: MonoBehaviour  //creo mi clase que se
     // y lo creara con el constructor por defecto  System.Random()
     // el cual generará numeros aleatorios.
 
+    private bool ReproducirSeñal = true; // variable booleana que nos servirá para reproducir o no la señal,
+    // por defecto la inicializamos en true, para que se reproduzca la señal desde el inicio, 
+    // pero luego la podemos cambiar a false para que deje de reproducirse la señal.
+
+    private void Update() // metodo que se ejecuta una vez por frame, es decir 60 veces por segundo
+    // Cada frame pregunta, si se presiono la tecla espacio para reproducir o no la señal
+    {
+        if (Input.GetKeyDown(KeyCode.Space)) // si se presiona la tecla espacio, entonces... 
+        {
+            ReproducirSeñal = !ReproducirSeñal; // cambiamos el valor de ReproducirSeñal a su contrario, 
+            // si era true pasa a false, si era false pasa a true
+        }
+    }
+
+
     private void OnAudioFilterRead(float[] SeñalEnFormaDeVector, int CanalesDeLaSeñal) 
-    // metodo NATIVO de que se ejecuta cada vez que Unity necesita un nuevo bloque de audio
+    // metodo NATIVO de que SE EJECUTA INFINITAMENTE cada vez que Unity necesita un nuevo bloque de audio 
+    // GENERADO DESDE CERO
 
     // ¿Porque se lee este metodo si nunca lo llamo?
     // porque Unity lee nuestro script en orden y ve que hay un audiosource que es obligatorio 
     // ese audiosource esta con playonawake por defecto siempre
     // entonces 
     // busca automaticamante un metodo que se llame OnAudioFilterRead() 
-    // con este metodo se llena la SeñalEnFormaDeVector con valores de entre -1 y 1
-    // y lo ejecuta cada vez que necesita un nuevo bloque de audio
-    // es decir genera las 2048 muestras, y vuelve a llamarlo...y asi..infinitamente 
+    // con este metodo se llena la SeñalEnFormaDeVector con valores de entre -1 y 1 si ReproducirSeñal=true
+    //  o con ceros osea silencio si ReproducirSeñal=false
+    // se ejecuta infinitamente
+    // es decir genera la señal con  un vector vacio con 2048 muestras, las llena con ceros o valores aleatorios
+    // la reproduce y vuelve a llamarlo...y asi..infinitamente 
 
     // float[] SeñalEnFormaDeVector es un parametro de entrada del método OnAudioFilterRead, 
     // float[] SeñalEnFormaDeVector es un arreglo de numeros flotantes, Representa las muestras de audio que el parlante reproducirá inmediatamente.
@@ -66,6 +84,25 @@ public class Script1_PrimerSeñalInfinita: MonoBehaviour  //creo mi clase que se
     {
         Debug.Log("Longitud de la señal N="+ SeñalEnFormaDeVector.Length + "  Canales de la señal=" + CanalesDeLaSeñal); //imprime en consola la longitud de la señal y la cantidad de canales
         // para saber que valores me dio automaticamente Unity.
+
+        if (!ReproducirSeñal) //si reproducirseñal es falso, osea si quiero silencio  
+        // porque presioné la tecla espacio, entonces lleno el vector de ceros y retorno
+        {
+            for (int i = 0; i < SeñalEnFormaDeVector.Length; i++)
+            {
+                SeñalEnFormaDeVector[i] = 0f;
+            }
+
+            return; // no ejecute nada de lo que hay despues  y salga del metodo OnAudioFilterRead, 
+            // porque ya llene el vector con ceros
+            //obviamente unity enseguida volvera a llamar el metodo, porque este metodo se llama infinitamente
+            // generara otro vector vacio
+            // y como ReproducirSeñal sigue siendo false, lo llenara de ceros , lo reproducirá (silencio)y retornara otra vez
+            // volvera a llamar el metodo, generara otro vector vacio lo llenara de ceros , lo reproducirá (silencio)y retornara otra vez
+            // y asi infinitamente hasta que presione la tecla espacio otra vez y ReproducirSeñal pase a true
+            // entonces volvera a llamar el metodo, generara otro vector vacio lo llenara de numeros aleatorios entre -1 y 1 , lo reproducirá y lo llamara otra vez...
+            // no ejecutara el if sino el for que esta despues 
+        }
 
         for (int i = 0; i < SeñalEnFormaDeVector.Length; i++)  // si el valor que Unity nos dio para 
         // SeñalEnFormaDeVector.Length es 2048, entonces este for se ejecutará 2048 veces
