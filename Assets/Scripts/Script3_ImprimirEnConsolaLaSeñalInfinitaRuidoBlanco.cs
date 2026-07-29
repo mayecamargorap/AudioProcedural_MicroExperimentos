@@ -38,7 +38,7 @@ using UnityEngine; // Vamos a usar Unity, por eso ponemos esta linea.
 //                             ║     ImprimirEnConsolaPrimerSeñalInfinitaRuidoBlanco     ║                                                               ║
 //                             ╚═════════════════════════════════════════════════════════╝
 
-public class ImprimirEnConsolaPrimerSeñalInfinitaRuidoBlanco: MonoBehaviour  //creo mi clase que se llama como el script 
+public class ImprimirEnConsolaSeñalInfinitaRuidoBlanco: MonoBehaviour  //creo mi clase que se llama como el script 
 // que HEREDA de MonoBehaviour, que es la clase base de todos los scripts de Unity.
 // los metodos start(), Update(), OnAudioFilterRead(), OnEnable(), OnDisable()...etc
 // osea aqui dentro de esta clase podemos escribir y usar todos los metodos de la clase Monobehaviour
