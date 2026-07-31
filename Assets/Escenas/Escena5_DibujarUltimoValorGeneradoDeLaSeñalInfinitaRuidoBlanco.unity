@@ -372,7 +372,7 @@ MonoBehaviour:
   "VariableReproducirSe\xF1al": 1
   VariableYaMostreLasMuestras: 0
   VariableUltimoValorGenerado: 0
-  VariableGameObject_EsferaQueDibujaElUltimoValorGenerado: {fileID: 25047325}
+  VariableReferenciaGameObject_EsferaQueDibujaElUltimoValorGenerado: {fileID: 25047325}
 --- !u!1 &1087058172
 GameObject:
   m_ObjectHideFlags: 0

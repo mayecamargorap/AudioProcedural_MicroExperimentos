@@ -40,7 +40,7 @@ using UnityEngine; // Vamos a usar Unity, por eso ponemos esta linea.
 //                  ║    ImprimirEnConsolaPrimerSeñalInfinitaRuidoBlanco                             ║                                                               ║
 //                  ╚════════════════════════════════════════════════════════════════════════════════╝
 
-public class Script6_DibujarTodaLaSeñalInfinitaRuidoBlanco: MonoBehaviour  //creo mi clase que se llama como el script 
+public class Script6_DibujarInfinitamenteTodaLaSeñalInfinitaRuidoBlanco: MonoBehaviour  //creo mi clase que se llama como el script 
 // que HEREDA de MonoBehaviour, que es la clase base de todos los scripts de Unity.
 // los metodos start(), Update(), OnAudioFilterRead(), OnEnable(), OnDisable()...etc
 // osea aqui dentro de esta clase podemos escribir y usar todos los metodos de la clase Monobehaviour
@@ -61,21 +61,13 @@ public class Script6_DibujarTodaLaSeñalInfinitaRuidoBlanco: MonoBehaviour  //cr
         //                ║    2.2. VARIABLES  (Mostrarlas en inspector)                             ║                                                               ║
         //                ╚══════════════════════════════════════════════════════════════════════════╝
 
-        [Header("Variables de prueba")] // esta instruccion crea un encabezado o titulo en el inspector de Unity 
-        // que dice "Variables del personaje" 
-        // sirve mucho para orden 
-        //siempre va antes de la variable que queremos mostrar en el inspector de Unity, en este caso volumen mio
-        public float MiVariable = 1f; // esta instruccion crea una variable pública de tipo float llamada MiVariable 
-        // y le asigna el valor 1f y la muestra en el inspector de Unity.
-
-    
-         #region 2.2.1 Del código
+          #region 2.2.1 Del código
 
             //                ╔══════════════════════════════════════════════════════════════════════════╗
             //                ║    2.2.1 VARIABLES exclusivas del código                                 ║   
             //                ║          se llaman VariableTal....                                       ║                                                              ║
             //                ╚══════════════════════════════════════════════════════════════════════════╝
-
+            // Declaracion
             [Header("Variables exclusivas del código")] // esta instruccion crea un encabezado o titulo en el inspector de Unity
 
             public bool VariableReproducirSeñal = true; // variable booleana que nos servirá para reproducir o no la señal,
@@ -88,17 +80,21 @@ public class Script6_DibujarTodaLaSeñalInfinitaRuidoBlanco: MonoBehaviour  //cr
 
             public float VariableUltimoValorGenerado; // Aqui dentro guardare el numero random que se genere y lo  mostrare en el inspector
                             // Cantidad de muestras que queremos dibujar
-            public int VariableCantidadDeMuestrasADibujar = 600; //// Cantidad de muestras de la señal que queremos representar gráficamente. ejm 
-            //"Ejm: Solo voy a dibujar las primeras 200 muestras."
+
+            public int VariableCantidadPropuestaDeMuestrasADibujar = 200; // aqui declato y inicializo de una vez la Cantidad de muestras de la señal 
+            // que queremos representar gráficamente. "Ejm: Solo voy a dibujar las primeras 200 muestras."
+
+            private int VariableCantidadRealDeMuestrasADibujar=0;
 
             // Aquí guardaremos una copia de la señal
-            private float[] VectorCopiaDeLaSeñal; // la copiamos para usarla para dibujar la copia 
-            // Guardamos una copia de las primeras 200 muestras de la señal.
-            // Esa copia será utilizada por Update() para dibujar la gráfica.
+            private float[] VectorCopiaDeLaSeñal; // Este vector se creo para ahi copiar la señal original y asi para usarla para dibujar 
+            // Esa VectorCopia será utilizado por Update() para dibujar la gráfica.
             //
-            // No dibujamos directamente el arreglo VectorDeLaSeñal porque
-            // pertenece al hilo o thread de audio y como queremos dibujarlo y eso se hace en el hilo o thread de main
-            // por eso necesitamos una copia que podamos acceder desde main thread  y asi dibujarlo
+            // No dibujamos directamente el arreglo VectorDeLaSeñal porque ese vector 
+            // pertenece al hilo o thread de audio y desde el hilo de audio no podemos dibujar
+
+            // Entonces copiamos n muestras del VectorDeLaSeñal en este VectorCopia que esta en el hilo main osea en el codigo
+            // y asi ya podremos dibujarlo desde el hilo del main.
             
          #endregion
 
@@ -122,7 +118,8 @@ public class Script6_DibujarTodaLaSeñalInfinitaRuidoBlanco: MonoBehaviour  //cr
             // la copiamos o referenciamos aqui en el codigo
             // para que cualquier cosa que modifiquemos desde codigo, en esta variable
             // se modifique en el gameobject del hierachy
-            //En este caso la variableGameObject, es una esfera que queremos mover desde el código, 
+            //En este caso la variableGameObject, es una esfera que queremos mover desde el código,
+            // CUYA FUNCION ES MOVERSE EN PANTALLA DE ACUERDO AL PUNTO DE LA SEÑAL QUE REPRESENTE  
             // en este caso la esfera que dibuja el ultimo valor generado
 
             public LineRenderer VariableReferenciaAlGameObject_LineRendererOLapizDeLaSeñal; // variable tipo gameobject linerenderer , yo lo llamare "lapiz"
@@ -130,9 +127,16 @@ public class Script6_DibujarTodaLaSeñalInfinitaRuidoBlanco: MonoBehaviour  //cr
             // la copiamos o referenciamos aqui en el codigo 
             // Para que cualquier cosa que modifiquemos desde codigo, en esta variable 
             // se modifique en el gameobject linerendereer del hierachy
+
+            // Un LineRenderer es un gameobject de unity CUYA FUNCION ES DIBUJAR UNA LINEA (LA SEÑAL) uniendo una serie de puntos en el espacio 3d.
             // en este caso la variable linerenderer, es como un lapiz especial que dibuja lineas, 
             // osea dibuja la señal completa de ruido blanco
             // Tiene muchas propiedades: Por ejemplo: color, grosor, cantidad de puntos, posición de cada punto
+
+            // para dibujar neceesita una lista de posiciones por ejemplo punto0, punto1, punto2...
+            // cada punto tiene (x,y,z)
+
+
 
          #endregion
 
@@ -155,10 +159,10 @@ public class Script6_DibujarTodaLaSeñalInfinitaRuidoBlanco: MonoBehaviour  //cr
             private void Start()
             {
                 //                 ╔════════════════════════════════════════════════════════════════╗
-                //                 ║   2.3.1.1 Inicializar variable copia de la señal               ║                                                               ║
+                //                 ║ 2.3.1.1 Inicializar el tamaño de la variable copia de la señal ║                                                               ║
                 //                 ╚════════════════════════════════════════════════════════════════╝
                 
-                VectorCopiaDeLaSeñal = new float[VariableCantidadDeMuestrasADibujar]; 
+                VectorCopiaDeLaSeñal = new float[VariableCantidadPropuestaDeMuestrasADibujar]; 
                 // inicializamos el. vector, Con esto reservas memoria para guardar las primeras muestras.
 
                 VariableReferenciaAlGameObject_LineRendererOLapizDeLaSeñal.startWidth = 0.05f  ; //grosor de la linea de dibujo
@@ -277,35 +281,35 @@ public class Script6_DibujarTodaLaSeñalInfinitaRuidoBlanco: MonoBehaviour  //cr
                     //               ║ 2.3.2.3. Dibujar señal completa                              ║
                     //               ╚══════════════════════════════════════════════════════════════╝   
                                         
+                 
+                    
                     if (VariableReferenciaAlGameObject_LineRendererOLapizDeLaSeñal != null) 
                     // significa que desde el Inspector ya enlazamos un LineRenderer.}
                     // A partir de esa referencia podremos modificar el objeto real
                     // que existe en la escena.
                     {
-                        VariableReferenciaAlGameObject_LineRendererOLapizDeLaSeñal.positionCount =VariableCantidadDeMuestrasADibujar;
-                    // positionCount NO dibuja la línea.
-                    // Solo indica cuántos puntos tendrá el LineRenderer.
-                    // Después SetPosition() asignará la posición de cada uno.
-                        
+                        VariableReferenciaAlGameObject_LineRendererOLapizDeLaSeñal.positionCount =VariableCantidadRealDeMuestrasADibujar;
+                        // positionCount NO dibuja la línea.
+                        // Solo indica cuántos puntos tendrá la linea que creara el linerenderer 
+                        // en nuestro caso positionCount= VariableCantidadRealDeMuestrasADibujar
+                        // Después SetPosition() asignará la posición de cada uno.                        
 
-                        for (int muestra = 0; muestra < VariableCantidadDeMuestrasADibujar; muestra++)
+                        for (int numerodemuestra = 0; numerodemuestra < VariableCantidadRealDeMuestrasADibujar; numerodemuestra++)
                         {
                             VariableReferenciaAlGameObject_LineRendererOLapizDeLaSeñal.SetPosition //ponga un punto en...
-                            (
-                                muestra, new Vector3 //...estas coordenadas 
-                                (
-                                    muestra * 0.03f, VectorCopiaDeLaSeñal[muestra],0 
-                                    //Si no multiplicaras por 0.05, los puntos quedarían a una unidad de distancia 
-                                    // entre sí y la gráfica sería muy ancha.
-                                    //Cada muestra copiada se convierte en la altura del punto, 
-                                    // no desplazar en z
-                                    // Ejm
-                                    // si por ejemplo la muestra es la 3 quedaria
-                                    // (3*0.05f, valor de la señal en este punto ejn 0.67,0)
-                                    // 1.5 , 0.67 , 0
-                                    // y asi lo hace con cada una de las muestras de la señal hasta dibujar todos los puntos
-                                )
-                            );
+                            ( numerodemuestra, new Vector3  (  numerodemuestra * 0.03f, VectorCopiaDeLaSeñal[numerodemuestra],0  )); // ....las coordenadas de este vector 3
+                            // en x pongo el indice numerodemuestra 0,1,,2,3,4,5,...
+                            //      Si no multiplicaras por 0.05, los puntos quedarían a una unidad de distancia 
+                            //      entre sí y la gráfica sería muy ancha.
+                            // en y pongo el valor correspondiente a la posicion [numerodemuestra] en el VectorCopiaDeLaSeñal
+                            //      esa seria la altura de la grafica
+                            // en z no pongo nada , osea no le doy profundiad
+
+                            // Ejm
+                            // si por ejemplo el numerodemuestra es la 3° quedaria
+                            // ( 3 * 0.05f, valor de la señal en este punto ejn 0.67, 0)
+                            // (    1.5 ,                       0.67                , 0
+                            // y asi lo hace con cada una de las muestras de la señal hasta dibujar todos los puntos
                         }
                     }
                 #endregion // endregion de Dibujar señal
@@ -375,23 +379,25 @@ public class Script6_DibujarTodaLaSeñalInfinitaRuidoBlanco: MonoBehaviour  //cr
                     // para saber que valores me dio automaticamente Unity.
                 #endregion
 
-
-                #region 2.4.1.2. # muestras a copiar  
+                #region 2.4.1.2. Calcular CantidadRealDeMuestrasADibujar
+                // pero se dibuja en update
                     //                ╔═════════════════════════════════════════════════════════════╗
-                    //                ║ 2.4.1.1.Cantidad de muestras a copiar                       ║                                                               ║
+                    //                ║ 2.4.1.2. Calcular CantidadRealDeMuestrasADibujar            ║                                                               ║
                     //                ╚═════════════════════════════════════════════════════════════╝
 
-                int CantidadDeMuestrasACopiar = Mathf.Min(VariableCantidadDeMuestrasADibujar,
-                            VectorDeLaSeñal.Length);
-                            //Esto evita errores si algún día el bloque de audio tiene menos de 200 muestras.
-                            //?????????????
+                    VariableCantidadRealDeMuestrasADibujar = Mathf.Min(VariableCantidadPropuestaDeMuestrasADibujar, VectorDeLaSeñal.Length);
+                    // Por precaucion limito que la cantidad de muestras a copiar sea:
+                    // -  o el minimo que yo determine en el codigo ejm 200 muestras
+                    // -  ó si la señal es menor ejm 100 muestras que dibuje unicamente las 100
+                    // eso para prevenir errores futuros.
+                    // por eso los parametros son 2, y ya Unity esocgerá el menor de los dos  
 
-                            // Explicacion de que quiere decir math.min osea minimo 200 si la señal es de mas muestras 
-                            // o si la señal tiene menos de 200 muestras ejm : 100 
-                            // CantidadDeMuestrasACopiar=100
-                #endregion
+                    // Explicacion de que quiere decir math.min osea minimo 200 si la señal es de mas muestras 
+                    // o si la señal tiene menos de 200 muestras ejm : 100 
+                    // CantidadDeMuestrasACopiar=100
+                #endregion  
 
-                #region 2.4.1.2. Silencio = ceros 
+                #region 2.4.1.3. Silencio = ceros 
                     //                ╔═════════════════════════════════════════════════════════════╗
                     //                ║  2.4.1.2. Si se presiono la tecla espacio PARA              ║
                     //                ║              SILENCIAR sonido                               ║ 
@@ -462,7 +468,7 @@ public class Script6_DibujarTodaLaSeñalInfinitaRuidoBlanco: MonoBehaviour  //cr
                         // posicion libre de la señal
                         // y asi la voy construyendo valor a valor.
 
-                        if (muestra < CantidadDeMuestrasACopiar) // Copiamos únicamente las primeras muestras.
+                        if (muestra < VariableCantidadRealDeMuestrasADibujar) // Copiamos únicamente las primeras muestras.
                         // Esa copia será utilizada posteriormente por Update()
                         // // para dibujar la gráfica en pantalla.
 
@@ -571,6 +577,7 @@ public class Script6_DibujarTodaLaSeñalInfinitaRuidoBlanco: MonoBehaviour  //cr
         #endregion OnAudioFilterRead 
 
     #endregion // cierre de metodos de audio 
+
 }
 #endregion //cierre de la region de la clase 
 
