@@ -1,7 +1,51 @@
 //              ╔═════════════════════════════════════════════════════════════════════════════════════╗
-//              ║ Script6_DibujarCompletaLaSeñalInfinitaRuidoBlanco                                   ║                                                               ║
+//              ║ Script8_CrearSenalSenoYDibujarlaUnaVez                                              ║                                                               ║
 //              ╚═════════════════════════════════════════════════════════════════════════════════════╝
 
+
+    #region 1. Los 2 Hilos del juego explicacion
+            
+                    // ¿Por qué generamos la señal en un método y la dibujamos en otro?
+                    // Unity trabaja con varios hilos, nosotros usaremos dos hilos (Threads) principales para este caso:
+
+                    // 1. Hilo del juego  o "hilo grafico" o "hilo del front" (Main, graphic or front Thread)
+                    // Aquí se ejecutan los métodos relacionados con el juego y la parte gráfica, por ejemplo
+                    //       Start(), Update(), LateUpdate() 
+                    // Desde este hilo podemos:
+                    //      Mover GameObjects, Rotar y escalar (modificando su componente Transform.position por ejemplo)
+                    //      Dibujar gráficos (LineRenderer).
+                    //      Leer entradas del teclado, mouse y controle (Input), 
+                    //      Modificar la interfaz de usuario.
+                    
+                    // 2. Hilo del audio o "hilo de la señal" o "hilo del back" (Audio, signal or back Thread)
+                    // Aquí se ejecuta el método: OnAudioFilterRead()
+                    // Desde este hilo podemos:
+                    //      Generar la señal de audio, Modificar las muestras del arreglo de audio.
+                    //      Guardar valores de la señal en variables.
+                    //      DESDE Este hilo NO se puede modificar objetos de la escena, como mover GameObjects o dibujar gráficos.
+                    
+                    // Ambos hilos trabajan al mismo tiempo
+                    // El hilo del juego o "hilo del front" y el hilo del audio o "hilo del back" se ejecutan de forma independiente. 
+                    // Ninguno espera a que el otro termine. Sin embargo, pueden compartir variables.
+                    // Entonces, antes de programar, debemos preguntarnos:
+                    // ¿Lo que quiero hacer pertenece al juego o al audio? 
+                    // y en base a la respuesta hacerlo donde corresponda
+
+                    // Por ejemplo, en nuestro proyecto:
+
+                    // Desde el hilo del audio o "hilo del back"
+                    // Generamos la señal en OnAudioFilterRead(). 
+                    // Guardamos el ultimo valor generado en tiempo real en una variable compartida (UltimoValorGenerado)
+                    // ese ultimo valor generado puede ser la muestra 5, la 10, la antepenultima, la del medio
+                    // de una o de otra señal, pero es la ultima generada en tiempo real.
+                    // 
+                    // Y Desde del hilo del main o "hilo del front"
+                    // Movemos la esfera desde el metodo Update() al ultimo valor generado
+                    // Así respetamos la arquitectura de Unity y evitamos errores como:
+                    // "SetPosition can only be called from the main thread."
+
+
+    #endregion
 
 #region Encabezados, librerias y requerimientos
 //                  ╔═════════════════════════════════════════════════════════════════════════════════╗
@@ -71,69 +115,85 @@ public class Script8_CrearSenalSenoYDibujarlaUnaVez: MonoBehaviour  //creo mi cl
             //                ║    2.2.1 VARIABLES exclusivas del código                                 ║   
             //                ║          se llaman VariableTal....                                       ║                                                              ║
             //                ╚══════════════════════════════════════════════════════════════════════════╝
-            // Declaracion
+            // Estas variables pertenecen al script. No representan ningún objeto de la escena. 
+            // Guardan información, parámetros o estados que utiliza el algoritmo.
+            // Son variables que pertenecen al algoritmo y almacenan datos, parámetros o estados necesarios para generar y controlar la señal.
+
             [Header("Variables exclusivas del código")] // esta instruccion crea un encabezado o titulo en el inspector de Unity
 
             public bool VariableReproducirSeñal = true; // variable booleana que nos servirá para reproducir o no la señal,
             // por defecto la inicializamos en true, para que se reproduzca la señal desde el inicio, 
             // pero luego la podemos cambiar a false para que deje de reproducirse la señal.
+            // eso se cambia o actualiza en el update, en base si la tecla "espacio" esta presionada.
 
             public bool VariableYaMostreLasMuestras = false; //OnAudioFilterRead() no se ejecuta una sola vez. 
             // Unity la llama una y otra vez mientras el audio está sonando.
             // Entonces con este bool sé si ya mostre los primeros 10 valores.
-
-            public float VariableUltimoValorGenerado; // Aqui dentro guardare el numero random que se genere y lo  mostrare en el inspector
-                            // Cantidad de muestras que queremos dibujar
-
+            // y si ya los mostró que no los vuelva a mostrar.
+  
             public int VariableCantidadPropuestaDeMuestrasADibujar = 200; // aqui declato y inicializo de una vez la Cantidad de muestras de la señal 
             // que queremos representar gráficamente. "Ejm: Solo voy a dibujar las primeras 200 muestras."
 
-            public int VariableCantidadRealDeMuestrasADibujar=0;
-
-            // Aquí guardaremos una copia de la señal
-            private float[] VectorCopiaDeLaSeñal; // Este vector se creo para ahi copiar la señal original y asi para usarla para dibujar 
-            // Esa VectorCopia será utilizado por Update() para dibujar la gráfica.
-            //
-            // No dibujamos directamente el arreglo VectorDeLaSeñal porque ese vector 
-            // pertenece al hilo o thread de audio y desde el hilo de audio no podemos dibujar
-
-            // Entonces copiamos n muestras del VectorDeLaSeñal en este VectorCopia que esta en el hilo main osea en el codigo
-            // y asi ya podremos dibujarlo desde el hilo del main.
-
-            public bool VariableYaCopieLaPrimeraSeñal = false;
+            public int VariableCantidadRealDeMuestrasADibujar=0; 
+            // esta variable se creo para que en caso de que nuestra señal tenga menor cantidad de muestras de las que nos proponemos dibujar, 
+            // no nos bote error, sino que escoja el menor valor de los dos, en este caso seria que dibuje la señal original.
+            // por ejemplo proponemos que dibuje 200 muestras, pero nuestra señal solo tiene 100 muestras
+            // entonces la cantidad real que dibujara sera 100
             public bool VariableYaSeDibujoLaSeñal = false; //variable booleana para controlar que la señal se dibuje una sola vez y que no se haga 
             //infinitamente, sino la usamos al momento de dibujar la señal...entonces se dibujaran infinitas señales sobrescribiendose.
 
-            // Declaracion
-            [Header("Variables para señal seno")] 
-            public float VariableFrecuencia = 440f;
-            public int VariableFrecuenciaDeMuestreo = 44100;
+                //                ╔══════════════════════════════════════════════════════════════════════════╗
+                //                ║    2.2.1.1. VARIABLES exclusivas del código                              ║   
+                //                ║             para dibujar señal SENO                                      ║                                                              ║
+                //                ╚══════════════════════════════════════════════════════════════════════════╝
+
+            [Header("Variables para señal seno")] // esta instruccion crea un encabezado o titulo en el inspector de Unity
+            public float VariableFrecuenciaOCiclosFenHz = 440f;
+            public int VariableFrecuenciaDeMuestreoFsenMuestrasPorSegundo = 44100;
+
             
          #endregion
 
-         #region 2.2.1 Del Hierachy
+         #region 2.2.1 Referencias desde Hierachy
 
             //                ╔══════════════════════════════════════════════════════════════════════════╗
             //                ║    2.2.1 VARIABLES desde Hierachy al codigo                              ║     
-            //                ║          se llaman VariableReferenciaAlGameobject_Tal....                                       ║                                                             ║
+            //                ║          se llaman VariableReferenciaAlGameobject_Tal....                ║                                                             ║
             //                ╚══════════════════════════════════════════════════════════════════════════╝
-                       
-            [Header("Variables traidas desde Hierachy al código")]
+            // Estas variables NO crean objetos.
+            // Simplemente contienen una referencia a un objeto que ya existe en la escena. 
+            
+            // Aqui no se crean gameobjects ni linerenderers, 
+            // sino que se traen desde la escena del panel de hierachy como REFERENCIAS para poder manipularlos desde el código
+            // lo que hagamos a estas referencias desde el código, se vera reflejado en la escena, 
+            // porque son referencias a los objetos de la escena
+            // Son variables que contienen referencias a objetos que ya existen en el Hierarchy, para poder acceder a ellos 
+            // y manipularlos desde el código.
+
+            [Header("Variables traidas desde Hierachy al código")] // esta instruccion crea un encabezado o titulo en el inspector de Unity
             //referencias a GameObjects de la escena, para poder moverlos, escalarlos, rotarlos, etc. desde el código
             // referencias a LineRenderer de la escena, para poder dibujar lineas desde el código
 
-            // Aqui no se crean gameobjects ni linerenderers, 
-            // sino que se traen desde la escena hierachy como REFERENCIAS para poder manipularlos desde el código
-            // lo que hagamos a estas referencias desde el código, se vera reflejado en la escena, 
-            // porque son referencias a los objetos de la escena
             public GameObject VariableReferenciaAlGameObject_EsferaQueDibujaElUltimoValorGenerado;  // variable tipo gameobject 
             // esta variable es la copia o referencia del Gameobject_esfera del hierachy
             // la copiamos o referenciamos aqui en el codigo
-            // para que cualquier cosa que modifiquemos desde codigo, en esta variable
+            // para que cualquier cosa que modifiquemos desde codigo, en esta VariableReferencia
             // se modifique en el gameobject del hierachy
-            //En este caso la variableGameObject, es una esfera que queremos mover desde el código,
-            // CUYA FUNCION ES MOVERSE EN PANTALLA DE ACUERDO AL PUNTO DE LA SEÑAL QUE REPRESENTE  
-            // en este caso la esfera que dibuja el ultimo valor generado
+            // En este caso la VariableReferenciaAlGameObject, es una esfera que queremos mover desde el código,
+            // CUYA FUNCION ES MOVERSE EN PANTALLA en y DE ACUERDO AL PUNTO DE LA SEÑAL QUE REPRESENTE  
+            // en este caso la esfera se posiciona en tiempo real en las coordenadas del ultimo valor generado
+            // ese valor generado y "alojado en un vector" corresponde al valor de y
+
+            public GameObject VariableReferenciaAlGameObject_EsferaQueDibujaTodaLaSeñal;  // variable tipo gameobject 
+            // esta variable es la copia o referencia del Gameobject_esfera del hierachy
+            // la copiamos o referenciamos aqui en el codigo
+            // para que cualquier cosa que modifiquemos desde codigo, en esta VariableReferencia
+            // se modifique en el gameobject del hierachy
+            // En este caso la VariableReferenciaAlGameObject, es una esfera que queremos mover desde el código,
+            // CUYA FUNCION ES MOVERSE EN PANTALLA (X,Y,Z)DE ACUERDO AL PUNTO DE LA SEÑAL QUE REPRESENTE  
+            // en este caso la esfera se posiciona en tiempo real en las coordenadas del ultimo valor generado
+            // ese valor generado y "alojado en un vector" corresponde al valor de y
+            // y el valor de x es el numero de la muestra 
 
             public LineRenderer VariableReferenciaAlGameObject_LineRendererOLapizDeLaSeñal; // variable tipo gameobject linerenderer , yo lo llamare "lapiz"
             // esta variable es la copia o referencia del gameobject LineRenderer del Hierachy
@@ -143,24 +203,63 @@ public class Script8_CrearSenalSenoYDibujarlaUnaVez: MonoBehaviour  //creo mi cl
 
             // Un LineRenderer es un gameobject de unity CUYA FUNCION ES DIBUJAR UNA LINEA (LA SEÑAL) uniendo una serie de puntos en el espacio 3d.
             // en este caso la variable linerenderer, es como un lapiz especial que dibuja lineas, 
-            // osea dibuja la señal completa de ruido blanco
-            // Tiene muchas propiedades: Por ejemplo: color, grosor, cantidad de puntos, posición de cada punto
+            // osea dibuja la señal completa de ruido blanco, o seno, o la señal que sea.
+            // Tiene muchas propiedades, Por ejemplo: color, grosor, cantidad de puntos, posición de cada punto
 
             // para dibujar neceesita una lista de posiciones por ejemplo punto0, punto1, punto2...
             // cada punto tiene (x,y,z)
 
 
 
+         #region 2.2.1 Puente entre hilos
+
+            //                ╔══════════════════════════════════════════════════════════════════════════╗
+            //                ║    2.2.1 VARIABLES de comunicacion o puente entre                        ║            
+            //                ║          el hilo main o "hilo de front"                                  ║
+            //                ║           y el hilo de audio o "hilo del back"                           ║                                                               ║
+            //                ╚══════════════════════════════════════════════════════════════════════════╝
+            
+            // variables que sirven de puente entre las variables del código y las referencias a los gameobjects de la escena
+
+            public float VariableUltimoValorGenerado; // Aqui dentro guardare el ultimo numero random que se genere en tiempo real 
+            // recordemos que se generan muchisimos, aqui no es el ultimo final y ya no se generan mas 
+            // sino el ultimo generado en tiempo real, despues siguen generandose mas 
+            // y lo  mostrare en el inspector
+            //esta variable se llena o se incializa en el metodo OnAudioFilterRead() que corresponde al hilo de audio o "hilo del back" 
+            // y se usa en el update() que corresponde al hilo de main o "hilo de front" para mover la esfera a esa altura 
+            // y dibujar solo el ultimo valor generado en tiempo real
+
+            private float[] VectorCopiaDeLaSeñal; // Este vector se creo para ahi copiar la señal original y asi usarla para dibujar 
+            // Ese VectorCopia será utilizado por Update() para alojar una copia de la señal y dibujar la gráfica.
+            // No dibujamos directamente el arreglo VectorDeLaSeñal porque ese vector 
+            // pertenece al hilo o thread de audio y desde el hilo de audio no podemos dibujar
+            // Entonces lo que hacemos es copiar n muestras del VectorDeLaSeñal  en la copia que es global 
+            // y asi ya podremos dibujarlo desde el hilo del main , mas especificamente en el update()
+            // Este vector se llena o se inicializa en el metodod OnAudioFilterRead() que corresponde al hilo de audio o "hilo del back"
+            // y se usa en el update() que corresponde al hilo de main o "hilo de front" para mover la esfera a esas alturas que tenemos en el vector.
+                        
+            public bool VariableYaCopieLaPrimeraSeñal = false;
+            //Cuado se empieza a generar la copia de la señal , debemos controlar si ya la copio o no
+            // si ya se copio se puede dibujar sino no
+            // sino se ha copiado continua copiandose 
+            // Donde se copia la señal es el metodod OnAudioFilterRead()
+            // Esta variable se actuliza, se llena o se inicializa en el metodod OnAudioFilterRead() que corresponde al hilo de audio o "hilo del back"
+            // y se usa en el update() que corresponde al hilo de main o "hilo de front" para mover identificar si la copia ya fue hecha y si ya fue hech
+            // proceder a dibujar la copia de la señal.
+            
+
          #endregion
 
 
+         #endregion
 
+    #endregion   
 
-    #endregion
-
-    #region 2.3 Métodos de juego 
    
-        //2.3 Métodos de juego = (main thread)
+
+    #region 2.3 Métodos de juego
+   
+        //2.3 Métodos de juego = (main thread) = Hilo del main = Hilo del juego
         //               ╔══════════════════════════════════════════════════════════════════════════╗
         //               ║   2.3  Metodos  del juego (main thread)                                  ║                                                               ║
         //               ╚══════════════════════════════════════════════════════════════════════════╝
@@ -217,46 +316,10 @@ public class Script8_CrearSenalSenoYDibujarlaUnaVez: MonoBehaviour  //creo mi cl
                     //               ║ osea dibujamos 60 muestras por segundo                      ║ 
                     //               ║                                                             ║    
                     //               ║          ¡¡¡ SI SE HACE AQUI !!!                            ║
-                    //               ║    Explicacion                                              ║
+                    //               ║    Explicacion al inicio del programa                       ║
                     //               ╚═════════════════════════════════════════════════════════════╝
 
-
-                    // ¿Por qué generamos la señal en un método y la dibujamos en otro?
-                    // Unity trabaja con dos hilos (Threads) principales para este caso:
-
-                    // 1. Hilo del juego (Main Thread)
-                    // Aquí se ejecutan los métodos relacionados con el juego y la parte gráfica, por ejemplo
-                    //       Start(), Update(), LateUpdate() 
-                    // Desde este hilo podemos:
-                    //      Mover GameObjects, Rotar y escalar (modificando su componente Transform.position por ejemplo)
-                    //      Dibujar gráficos (LineRenderer).
-                    //      Leer entradas del teclado, mouse y controle (Input), 
-                    //      Modificar la interfaz de usuario.
-                    
-                    // 2. Hilo del audio (Audio Thread)
-                    // Aquí se ejecuta el método: OnAudioFilterRead()
-                    // Desde este hilo podemos:
-                    //      Generar la señal de audio, Modificar las muestras del arreglo de audio.
-                    //      Guardar valores de la señal en variables.
-                    //      DESDE Este hilo NO se puede modificar objetos de la escena, como mover GameObjects o dibujar gráficos.
-                    
-                    // Ambos hilos trabajan al mismo tiempo
-                    // El hilo del juego y el hilo del audio se ejecutan de forma independiente. 
-                    // Ninguno espera a que el otro termine. Sin embargo, pueden compartir variables.
-                    // Entonces, antes de programar, debemos preguntarnos:
-                    // ¿Lo que quiero hacer pertenece al juego o al audio? 
-                    // y en base a la respuesta hacerlo donde corresponda
-
-                    // Por ejemplo, en nuestro proyecto:
-                    // Generamos la señal en OnAudioFilterRead().
-                    // Guardamos el ultimo valor generado en una variable compartida (UltimoValorGenerado)
-                    // ese ultimo valor generado puede ser la muestra 5, la 10, la antepenultima, la del medio
-                    // de una o de otra señal, pero es la ultima generada en tiempo real.
-                    // Dibujamos ese ultimo valor generado moviendo la esfera en Update().
-                    // Así respetamos la arquitectura de Unity y evitamos errores como:
-                    // "SetPosition can only be called from the main thread."
-
-                    //if (VariableReferenciaAlGameObject_EsferaQueDibujaElUltimoValorGenerado != null)
+                    if (VariableReferenciaAlGameObject_EsferaQueDibujaElUltimoValorGenerado != null)
                     // esta variable es nula cuando en el inspector no apunta a ningun objeto osea esta vacia la asignacion
                     // pero si en el inspector 
                     // la VariableGameObject_EsferaQueDibujaElUltimoValorGenerado 
@@ -264,37 +327,30 @@ public class Script8_CrearSenalSenoYDibujarlaUnaVez: MonoBehaviour  //creo mi cl
                     // GameObject_EsferaQueDibujaElUltimoValorGenerado
                     // Entonces ya no es nula , tiene un gameobject "dentro"
                     // y a ese gameobject yo puedo moverlo, escalarlo..etc.
-                    //{
-                        //VariableReferenciaAlGameObject_EsferaQueDibujaElUltimoValorGenerado.transform.position = new Vector3
-                        // en su posicion le genero un nuevo vector de 3, que y va a ser igual al ultimovalorgenerado
-                        // realmente aqui como mi compu esta a 60 fps, y en cada frame se ejecuta update()
-                        // quiere decir que en un segundo se ejecuta 60 veces el update 
-                        // llevando a  que en un segundo se ejecute ese if 60 veces 
-                        // o sea se dibujen 60 muestras por segundo en Unity.
+                    {
+                        VariableReferenciaAlGameObject_EsferaQueDibujaElUltimoValorGenerado.transform.position = new Vector3
+                        // en su posicion le genero un nuevo vector de 3, donde "y" va a ser igual al ultimovalorgenerado
+                        // que representa la altura
+                        // como esta VariableGameObject
+                        (
+                            0,
+                            VariableUltimoValorGenerado,
+                            0
+                        );
+                    }
 
-                        // ese 60 NO significa que se esten generando 60 muestras en la señal por segundo 
-                        // o sea ese 60 no es la frecuencia de muestreo
-                        // 
-                        // Si la frecuencia de muestreo es FS=44.100 muestras por segundos 
-                        // igual YO SOLO GRAFICO 60 MUESTRAS CON ESTE IF DENTRO DEL UPDATE
-                        // porque 44.100 mas seria casi imposible
-
-                        //(
-                            //0,
-                            //VariableUltimoValorGenerado,
-                            //0
-                        //);
-                    //}
-                
+               
                 #endregion // endregion de Dibujar ultimo valor generado
 
                 #region 2.3.2.3.Dibujar Señal
                      
                     //               ╔══════════════════════════════════════════════════════════════╗
                     //               ║ 2.3.2.3. Dibujar señal completa                              ║
-                    //               ╚══════════════════════════════════════════════════════════════╝   
-                                        
-                 
+                    //               ╚══════════════════════════════════════════════════════════════╝
+                            
+                    //               ╔══════════════════════════════════════════════════════════════╗
+                    //               ║  Dibujar la linea de la señal                                ║
+                    //               ╚══════════════════════════════════════════════════════════════╝  
                     
                     if ((VariableReferenciaAlGameObject_LineRendererOLapizDeLaSeñal != null) 
                     && (VariableYaSeDibujoLaSeñal == false)
@@ -325,14 +381,37 @@ public class Script8_CrearSenalSenoYDibujarlaUnaVez: MonoBehaviour  //creo mi cl
                             // ( 3 * 0.05f, valor de la señal en este punto ejn 0.67, 0)
                             // (    1.5 ,                       0.67                , 0
                             // y asi lo hace con cada una de las muestras de la señal hasta dibujar todos los puntos
+
+                            //               ╔══════════════════════════════════════════════════════════════╗
+                            //               ║  Muevo la esfera a lo largo de la señal mientras se dibuja   ║
+                            //               ╚══════════════════════════════════════════════════════════════╝ 
+                            // Esto se hace para que parezca que la esfera se mueve a lo largo de la señal mientras se dibuja,
+                            
+                            if (VariableReferenciaAlGameObject_EsferaQueDibujaTodaLaSeñal != null)
+                            // esta variable es nula cuando en el inspector no apunta a ningun objeto osea esta vacia la asignacion
+                            // pero si en el inspector 
+                            // la VariableReferenciaGameObject_EsferaQueDibujaTodaLaSeñal        
+                            // tiene enlazada a 
+                            // VariableReferenciaGameObject_EsferaQueDibujaTodaLaSeñal    
+                            // Entonces ya no es nula , tiene un gameobject "dentro"
+                            // y a ese gameobject yo puedo moverlo, escalarlo..etc.
+                            {
+                                VariableReferenciaAlGameObject_EsferaQueDibujaTodaLaSeñal.transform.position = new Vector3
+                                // en su posicion le genero un nuevo vector de 3, donde "y" va a ser igual al ultimovalorgenerado
+                                // que representa la altura
+                                // como esta VariableGameObject
+                                (
+                                    numerodemuestra * 0.03f,
+                                    VectorCopiaDeLaSeñal[numerodemuestra],
+                                    0
+                                );
+                            }
                         }
-                        // Ya terminamos de dibujar la primera señal
+                    // Ya terminamos de dibujar la primera señal
                     VariableYaSeDibujoLaSeñal = true;
                     }
-                #endregion // endregion de Dibujar señal
-
-
-            }              
+                #endregion // endregion de Dibujar señal                    
+            }      
         #endregion // endregion del update
 
     #endregion // endregion de los metodos de juego
@@ -396,7 +475,7 @@ public class Script8_CrearSenalSenoYDibujarlaUnaVez: MonoBehaviour  //creo mi cl
                     // para saber que valores me dio automaticamente Unity.
                 #endregion
 
-                #region 2.4.1.2. Calcular CantidadRealDeMuestrasADibujar
+                #region 2.4.1.2. Cantidad Real
                 // pero se dibuja en update
                     //                ╔═════════════════════════════════════════════════════════════╗
                     //                ║ 2.4.1.2. Calcular CantidadRealDeMuestrasADibujar            ║                                                               ║
@@ -414,11 +493,12 @@ public class Script8_CrearSenalSenoYDibujarlaUnaVez: MonoBehaviour  //creo mi cl
                     // CantidadDeMuestrasACopiar=100
                 #endregion  
 
-                #region 2.4.1.3. Silencio = ceros 
+                #region 2.4.1.3. Llenar ceros 
                     //                ╔═════════════════════════════════════════════════════════════╗
                     //                ║  2.4.1.2. Si se presiono la tecla espacio PARA              ║
                     //                ║              SILENCIAR sonido                               ║ 
-                    //                ║              lleno señal de ceros                           ║                                                             
+                    //                ║              lleno señal de ceros                           ║
+                    //                ║              ceros = silencio                                                                                          
                     //                ╚═════════════════════════════════════════════════════════════╝
 
                     if (!VariableReproducirSeñal) 
@@ -446,11 +526,13 @@ public class Script8_CrearSenalSenoYDibujarlaUnaVez: MonoBehaviour  //creo mi cl
                     }
                 #endregion
 
-                #region 2.4.1.3.Sonido = numeros 
+                #region 2.4.1.3.Llenar Sonido
                     //                ╔═════════════════════════════════════════════════════════════╗
                     //                ║ 2.4.1.3. Si se presiono la tecla espacio PARA               ║  
                     //                ║           ACTIVAR sonido                                    ║
                     //                ║           lleno señal de numeros aleatorios                 ║
+                    //                ║           lleno con numeros                                 ║
+                    //                ║           numeros= sonido                                   ║
                     //                ╚═════════════════════════════════════════════════════════════╝
 
                     // La  VariableReproducirSeñal cambia cuando presiono la tecla espacio, 
@@ -481,33 +563,13 @@ public class Script8_CrearSenalSenoYDibujarlaUnaVez: MonoBehaviour  //creo mi cl
 
                         // de manera que al final obtendria numeros aleatorios entre -1 y 1
 
-                    //VectorDeLaSeñal[muestra] = NumeroAleatorio;  //   guardo   ese numero aleatorio en la ultima 
+                        //VectorDeLaSeñal[muestra] = NumeroAleatorio;  //   guardo   ese numero aleatorio en la ultima 
                         // posicion libre de la señal
                         // y asi la voy construyendo valor a valor.
-                        float NumeroSeno = Mathf.Sin( 2f * Mathf.PI * VariableFrecuencia * muestra / VariableFrecuenciaDeMuestreo );
+
+                        float NumeroSeno = Mathf.Sin( 2f * Mathf.PI * VariableFrecuenciaOCiclosFenHz * muestra / VariableFrecuenciaDeMuestreoFsenMuestrasPorSegundo );
 
                         VectorDeLaSeñal[muestra] = NumeroSeno;
-
-                        #region 2.4.1.3.1. Copiar señal
-                            //            ╔═════════════════════════════════════════════════════════╗
-                            //            ║ 2.4.1.3.2. Copiar señal                                 ║
-                            //            ╚═════════════════════════════════════════════════════════╝
-
-                        if (muestra < VariableCantidadRealDeMuestrasADibujar&&VariableYaCopieLaPrimeraSeñal == false) // Copiamos únicamente las primeras muestras.
-                        // Esa copia será utilizada posteriormente por Update()
-                        // // para dibujar la gráfica en pantalla.
-
-                        {
-                        VectorCopiaDeLaSeñal[muestra] = NumeroSeno  ;
-                        }
-
-                        // cuando salga de este for cambio el valor de VariableYaCopieLaPrimeraSeñal a true 
-                        // porque cuando salga de este for ya habre copiado la señal
-                        // y estara lista para ser dibujada en el update...
-                        // alla configuro si quiero que se dibuje una vez o infinitamente 
-                        #endregion
-
-
 
 
                         #region 2.4.1.3.1. Imprimir 10
@@ -529,7 +591,7 @@ public class Script8_CrearSenalSenoYDibujarlaUnaVez: MonoBehaviour  //creo mi cl
                             } 
                         #endregion  
 
-                        #region 2.4.1.3.2. Guardar Ultimo
+                        #region 2.4.1.3.2 Guardar Ultimo
 
                             //            ╔════════════════════════════════════════════════════════╗
                             //            ║  2.4.1.3.2. Guardar ultimo valor generado              ║
@@ -554,52 +616,46 @@ public class Script8_CrearSenalSenoYDibujarlaUnaVez: MonoBehaviour  //creo mi cl
                             //                     ║    el ultimo generado en tiempo real          ║
                             //                     ║puede ser el 3°, el 5°, el antepenultimo       ║  
                             //                     ║   ¡¡¡ NO SE HACE AQUI SINO EN UPDATE()        ║
-                            //                     ║               Explicacion                     ║
+                            //                     ║       Explicacion al inicio del progr         ║
                             //                     ╚═══════════════════════════════════════════════╝
 
 
-                            // ¿Por qué generamos la señal en un método y la dibujamos en otro?
-                            // Unity trabaja con dos hilos (Threads) principales para este caso:
-
-                            // 1. Hilo del juego (Main Thread)
-                            // Aquí se ejecutan los métodos relacionados con el juego y la parte gráfica, por ejemplo
-                            //       Start(), Update(), LateUpdate() 
-                            // Desde este hilo podemos:
-                            //      Mover GameObjects, Rotar y escalar (modificando su componente Transform.position por ejemplo)
-                            //      Dibujar gráficos (LineRenderer).
-                            //      Leer entradas del teclado, mouse y controle (Input), 
-                            //      Modificar la interfaz de usuario.
-
-                            // 2. Hilo del audio (Audio Thread)
-                            // Aquí se ejecuta el método: OnAudioFilterRead()
-                            // Desde este hilo podemos:
-                            //      Generar la señal de audio, Modificar las muestras del arreglo de audio.
-                            //      Guardar valores de la señal en variables.
-                            //      DESDE Este hilo NO se puede modificar objetos de la escena
-                            //      NO se puede mover GameObjects o dibujar gráficos.
-                            
-                            // Ambos hilos trabajan al mismo tiempo
-                            // El hilo del juego y el hilo del audio se ejecutan de forma independiente. 
-                            // Ninguno espera a que el otro termine. Sin embargo, pueden compartir variables.
-                            // Entonces, antes de programar, debemos preguntarnos:
-                            // ¿Lo que quiero hacer pertenece al juego o al audio? 
-                            // y en base a la respuesta hacerlo donde corresponda
-
-                            // Por ejemplo, en nuestro proyecto:
-                            // Generamos la señal en OnAudioFilterRead().
-                            // Guardamos el ultimo valor generado en una variable compartida (UltimoValorGenerado)
-                            // ese ultimo valor generado puede ser la muestra 5, la 10, la antepenultima, la del medio
-                            // de una o de otra señal, pero es la ultima generada en tiempo real.
-                            // Dibujamos ese ultimo valor generado moviendo la esfera en Update().
-                            // Así respetamos la arquitectura de Unity y evitamos errores como:
-                            // "SetPosition can only be called from the main thread."
                         #endregion //endregion guardar ultimo 
+
+                        #region 2.4.1.3.3 Copiar señal
+                            //            ╔═════════════════════════════════════════════════════════╗
+                            //            ║ 2.4.1.3.3. Copiar señal                                 ║
+                            //            ╚═════════════════════════════════════════════════════════╝
+
+                            if (muestra < VariableCantidadRealDeMuestrasADibujar&&VariableYaCopieLaPrimeraSeñal == false) // Copiamos únicamente las primeras muestras.
+                            // Esa copia será utilizada posteriormente por Update()
+                            // // para dibujar la gráfica en pantalla.
+
+                            {
+                            VectorCopiaDeLaSeñal[muestra] = NumeroSeno  ;
+                            }
+
+                            // cuando salga de este for cambio el valor de VariableYaCopieLaPrimeraSeñal a true 
+                            // porque cuando salga de este for ya habre copiado la señal
+                            // y estara lista para ser dibujada en el update...
+                            // alla configuro si quiero que se dibuje una vez o infinitamente 
+                        #endregion
                    
                     }
+
+                #region 2.4.1.3.3.1 ConfirmoCopia
+
+                    //            ╔═════════════════════════════════════════════════════════╗
+                    //            ║ 2.4.1.3.3.1 Confirmo copia                              ║
+                    //            ╚═════════════════════════════════════════════════════════╝
+
                      if (VariableYaCopieLaPrimeraSeñal == false)
                     {
                         VariableYaCopieLaPrimeraSeñal = true;
                     }
+
+                #endregion
+
                 #endregion
 
             }
